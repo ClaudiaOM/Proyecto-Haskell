@@ -23,7 +23,7 @@ data Cell = Empty | Dirt | Corral | Obstacle | KidInCorral |
 instance Show Cell where
     show Empty = "| |"
     show Dirt = "|D|"
-    show Corral = "|C|"
+    show Corral = "|-|"
     show Obstacle = "|O|"
     show KidInCorral = "|k|"
     show (Robot _) = "|R|"
