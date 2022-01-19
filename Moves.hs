@@ -5,6 +5,8 @@ module Moves(
     show_bfs_matrix,
     robot_can_move,
     bfs,
+    closest_job,
+    build_path
 )
 where 
 
@@ -137,35 +139,65 @@ not_visited board bfs inf pos =
     where 
         cell = board ! pos
 
-robot_can_move:: Matrix -> Position -> Bool
-robot_can_move board pos = 
-    cell == Empty || cell == Dirt || cell == (Kid False) || cell == (Kid True) --TODO Ver cual Kid es
+robot_can_move:: Matrix -> Position -> Cell -> Bool
+robot_can_move board pos c =
+    if c /= Dirt
+        then cell == Empty || cell == Corral || cell == Dirt || cell == (Kid False) || cell == (Kid True)
+    --TODO Ver cual Kid es
+    else cell == Empty || cell == Corral || cell == Dirt
     where 
         cell = board ! pos
 
-bfs:: Matrix -> MatrixInt -> [Position] -> MatrixInt
-bfs board matrix [] = matrix
-bfs board matrix positions = bfs board updated_bfs new_positions
+bfs:: Matrix -> MatrixInt -> [Position] -> Cell-> MatrixInt
+bfs board matrix [] cell = matrix
+bfs board matrix positions cell = bfs board updated_bfs new_positions cell
     where
         n = fst $ size board
         m = snd $ size board
         inf = n * m
         x = head positions
         xs = tail positions
-        valid_moves = filter (\v -> matrix ! v == inf && robot_can_move board v) $ adjacents x (n,m)
+        valid_moves = filter (\v -> matrix ! v == inf && robot_can_move board v cell) $ adjacents x (n,m)
         value = matrix ! x + 1
         updated_bfs = matrix // [(pos, value) | pos <- valid_moves]
         new_positions = xs ++ valid_moves
 
 
-calculate_matrix_BFS:: Matrix -> Position -> MatrixInt
-calculate_matrix_BFS board pos = bfs board matrix [pos]
+calculate_matrix_BFS:: Matrix -> Position -> Cell -> MatrixInt
+calculate_matrix_BFS board pos cell = bfs board matrix [pos] cell
     where 
         n = fst $ size board
         m = snd $ size board
         inf = n * m
         new = array ((0,0),(n,m)) [((i,j),inf) | i <- [0..n], j <- [0..m]]
         matrix = new //[(pos,0)]
+
+
+closest_job:: Matrix -> MatrixInt -> Cell -> Position
+closest_job board matrix cell = 
+    if null positions
+        then (-1,-1)
+    else 
+        snd $ minimum positions
+    where
+        n = fst $ size board
+        m = snd $ size board
+        positions = [(matrix!(i,j), (i,j)) | i <- [0..n], j <- [0..m], board ! (i,j) == cell ]
+
+
+build_path matrix begin end = 
+    if begin == end 
+        then []
+    else
+        build_path matrix begin new_end ++ [end]
+    where
+        s = snd $ bounds matrix
+        n = fst $ s
+        m = snd $ s
+        adj = adjacents end (n,m)
+        current = matrix ! end
+        new_end = head $ filter (\x -> matrix ! x == current - 1) adj
+
 
 show_bfs_matrix:: MatrixInt -> String
 show_bfs_matrix board = unlines $ map row [0..n]
