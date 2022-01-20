@@ -154,7 +154,7 @@ robot_can_move board pos c =
     if c == Kid
         then cell == Empty || cell == Corral || cell == Dirt || cell == Kid 
     else if c == Corral
-        then cell == Empty || cell == Dirt || cell == Corral || cell == KidInCorral
+        then cell == Empty || cell == Dirt || cell == Corral -- || cell == KidInCorral
     else cell == Empty || cell == Corral || cell == Dirt
     where 
         cell = board ! pos
