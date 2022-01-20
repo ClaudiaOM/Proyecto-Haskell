@@ -1,12 +1,10 @@
 module Moves(
     adjacents,
-    calculate_matrix_BFS,
-    move_kid,
-    show_bfs_matrix,
-    robot_can_move,
-    bfs,
     closest_job,
-    build_path
+    build_path,
+    move_all_kid,
+    move_all_robot,
+    is_robot
 )
 where 
 
@@ -15,6 +13,8 @@ import Random
 import Data.Array
 import Debug.Trace
 import Data.List(unlines, unwords)
+import Data.Foldable
+
 
 type Position = (Int, Int)
 type Matrix_Size = (Int, Int)
@@ -103,27 +103,22 @@ move_all_obstacles board (xi,yi) dir =
 
 move_kid_obstacle::Matrix -> Position -> Position -> Direction -> Matrix
 move_kid_obstacle board (xi,yi) (xf,yf) dir = 
-    board1 // [(last_pos, (Kid False))]
+    board1 // [(last_pos, Kid)]
     where
         b = move_all_obstacles board (xf,yf) dir
         board1 = fst $ b
         last_pos = snd $ b
 
 
-move_kid::Matrix -> Position -> Int -> Matrix
-move_kid board (x,y) seed = 
-    if valid_movement new_pos (n,m) &&  not (occupied board new_pos) 
-        then move_kid_empty_cell board (x,y) new_pos kids seed
-    else if valid_movement new_pos (n,m) && cell == Obstacle && flag_obs == True
-        then move_kid_obstacle board (x,y) last_pos op_dir
-    else 
-        board 
-    where
+move_kid::Matrix -> Position -> IO Matrix
+move_kid board (x,y)  = do 
+    s <- seed
+    let
         n = fst $ size board
         m = snd $ size board
         square = adjacents_square (x,y) (n,m)
-        kids = length $ filter (\v -> board ! v == (Kid False)) square
-        r = range_random seed 4
+        kids = length $ filter (\v -> board ! v == Kid ) square
+        r = range_random s 4
         d = directions !! r
         op_dir = oposite_directions !! r
         new_pos = move (x,y) d
@@ -131,19 +126,35 @@ move_kid board (x,y) seed =
         obs = move_one_direction_obstacle board new_pos d
         flag_obs = fst obs
         last_pos = snd obs
+        res = if valid_movement new_pos (n,m) &&  not (occupied board new_pos) 
+                then move_kid_empty_cell board (x,y) new_pos kids s
+            else if valid_movement new_pos (n,m) && cell == Obstacle && flag_obs == True
+                then move_kid_obstacle board (x,y) last_pos op_dir
+            else 
+                board 
+    return res
+    
+
+
+move_all_kid board = do
+    let n = fst $ size board
+        m = snd $ size board
+        r = [(i,j) | i <- [0..n], j <- [0..m], board ! (i,j) == Kid]
+    foldlM move_kid board r
 
 
 not_visited::Matrix -> MatrixInt -> Int -> Position -> Bool
 not_visited board bfs inf pos = 
-    bfs ! pos == inf && (cell == Empty || cell == Dirt || cell == (Kid False) || cell == (Kid True)) --TODO Ver cual Kid es
+    bfs ! pos == inf && (cell == Empty || cell == Dirt || cell == Kid ) --TODO Ver cual Kid es
     where 
         cell = board ! pos
 
 robot_can_move:: Matrix -> Position -> Cell -> Bool
 robot_can_move board pos c =
-    if c /= Dirt
-        then cell == Empty || cell == Corral || cell == Dirt || cell == (Kid False) || cell == (Kid True)
-    --TODO Ver cual Kid es
+    if c == Kid
+        then cell == Empty || cell == Corral || cell == Dirt || cell == Kid 
+    else if c == Corral
+        then cell == Empty || cell == Dirt || cell == Corral || cell == KidInCorral
     else cell == Empty || cell == Corral || cell == Dirt
     where 
         cell = board ! pos
@@ -197,6 +208,87 @@ build_path matrix begin end =
         adj = adjacents end (n,m)
         current = matrix ! end
         new_end = head $ filter (\x -> matrix ! x == current - 1) adj
+
+
+matrix_robot::Matrix -> Position -> (MatrixInt, Cell)
+matrix_robot board position =
+    if robot_type == RobotDirt || robot_type == RobotDirtPassingCorral
+        then (calculate_matrix_BFS board position Dirt, Dirt)
+    else if robot_type == RobotKid || robot_type == RobotKidPassingCorral
+        then (calculate_matrix_BFS board position Kid, Kid)
+    else if robot_type == KidInRobot
+        then (calculate_matrix_BFS board position Corral, Corral)
+    else (calculate_matrix_BFS board position Kid, Kid) -- TODO ver que hacer con el robot que busca todo
+    where
+        robot_type = board ! position
+
+is_robot::Matrix -> Position -> Bool
+is_robot board position = 
+    c == Robot || c == KidInRobot || c == RobotKid || c == RobotDirt || c == RobotPassingCorral
+    || c == RobotKidPassingCorral || c == RobotDirtPassingCorral || c == RobotKidInCorral
+    where
+        c = board ! position
+
+
+change_cell_robot_move::Matrix -> Position -> Position -> Matrix
+change_cell_robot_move board begin end = 
+    if b == RobotKidPassingCorral && e == Kid
+        then move_cell_change_final board begin end Corral KidInRobot
+    else if b == RobotKidPassingCorral && e == Dirt
+        then move_cell_change_final board begin end Corral KidInRobot
+    else if e == Kid 
+        then move_cell_change_final board begin end Empty KidInRobot
+    else if b == KidInRobot && e == Corral
+        then move_cell_change_final board begin end Empty RobotKidInCorral
+    else if b == RobotKidInCorral && e == Corral 
+        then move_cell_change_final board begin end KidInCorral RobotKidPassingCorral
+    else if b == RobotKidInCorral && (e == Empty || e == Dirt)
+        then move_cell_change_final board begin end KidInCorral RobotKid
+    else if b == RobotKid && e == Corral
+        then move_cell_change_final board begin end Empty RobotKidPassingCorral
+    else if b == RobotDirt && e == Corral
+        then move_cell_change_final board begin end Empty RobotDirtPassingCorral
+    else if (b == RobotDirtPassingCorral || b == RobotKidPassingCorral) && e == Corral
+        then move_cell board begin end Corral
+    else if (b == RobotPassingCorral || b == RobotDirtPassingCorral) && (e == Empty || e == Dirt)
+        then move_cell_change_final board begin end Corral RobotDirt
+    else if (b == RobotPassingCorral || b == RobotKidPassingCorral) && (e == Empty || e == Dirt)
+        then move_cell_change_final board begin end Corral RobotKid
+    else move_cell board begin end Empty
+    where 
+        b = board ! begin
+        e = board ! end
+
+
+move_robot::Matrix -> Position -> Matrix
+move_robot board position = 
+    if closest /= (-1,-1) && matrix ! closest /= inf
+        then 
+        --trace(show position)        
+        --trace(show closest)
+        --trace(show_bfs_matrix matrix)
+        change_cell_robot_move board position movement
+    else 
+        --trace(show position)
+        board
+    where
+        n = fst $ size board
+        m = snd $ size board
+        inf = n * m
+        temp = matrix_robot board position
+        matrix = fst temp
+        cell = snd temp
+        closest = closest_job board matrix cell
+        path = build_path matrix position closest
+        movement = head path
+
+
+move_all_robot:: Matrix -> Matrix
+move_all_robot board = do 
+    let n = fst $ size board
+        m = snd $ size board
+        r = [(i,j) | i <- [0..n], j <- [0..m], is_robot board (i,j)]
+    foldl move_robot board r   
 
 
 show_bfs_matrix:: MatrixInt -> String
