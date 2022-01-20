@@ -8,35 +8,47 @@ module Board
     fill_board,
     kids_in_board,
     fill_cell,
-    finished
+    finished,
+    is_kid_in_robot,
+    is_robot_dirt,
+    is_robot_kid,
+    is_robot
 ) where
 
 import Data.Array
 import Data.List(unlines, unwords)
 import Random
 
-data Cell = Empty | Dirt | Corral | Obstacle | KidInCorral |  
-            Robot | Kid | KidInRobot | RobotKid | RobotDirt | RobotKidInCorral |
-            RobotPassingCorral | RobotDirtPassingCorral | RobotKidPassingCorral
+data Cell = Empty | Dirt | Corral | Obstacle | KidInCorral | Kid |   --Cells
+            RobotKid | RobotKidCleaning | RobotKidPassingCorral | RobotKidPassingKidInCorral |
+            RobotDirt | RobotDirtCleaning | RobotDirtPassingCorral | RobotDirtPassingKidInCorral |
+            KidInRobot | KidInRobotCleaning | KidInRobotPassingKidInCorral |
+            RobotAndKidInCorral  
             deriving(Eq)
 
 instance Show Cell where
     show Empty = "| |"
     show Dirt = "|D|"
     show Corral = "|-|"
-    show Obstacle = "|O|"
+    show Obstacle = "|X|"
     show KidInCorral = "|k|"
-    show Robot = "|R|"
     show Kid = "|K|"
-    show KidInRobot = "|r|"
+
     show RobotKid = "|1|"
-    show RobotDirt = "|2|"
-    show RobotKidInCorral = "|C|"
-    show RobotPassingCorral = "|3|"
-    show RobotDirtPassingCorral = "|4|"
-    show RobotKidPassingCorral = "|5|"
+    show RobotKidCleaning = "|2|"
+    show RobotKidPassingCorral = "|3|"
+    show RobotKidPassingKidInCorral = "|4|"
 
+    show RobotDirt = "|5|"
+    show RobotDirtCleaning = "|6|"
+    show RobotDirtPassingCorral = "|7|"
+    show RobotDirtPassingKidInCorral= "|8|"
 
+    show KidInRobot = "|r|"
+    show KidInRobotCleaning = "|9|"
+    show KidInRobotPassingKidInCorral = "|0|"
+
+    show RobotAndKidInCorral = "|C|"
 
 type Matrix = Array (Int, Int) Cell
 type Position = (Int, Int)
@@ -110,7 +122,7 @@ kids_in_board:: Matrix -> Bool
 kids_in_board board =  any (Kid == ) board 
 
 kids_in_robot_board:: Matrix -> Bool
-kids_in_robot_board board =  any (KidInRobot == ) board 
+kids_in_robot_board board =  any (is_kid_in_robot ) board 
 
 total_clean_cells:: Matrix -> Int
 total_clean_cells board = length $ filter (\v -> board ! v == Empty) pos
@@ -132,3 +144,17 @@ finished board = not (kids) && not (rob) && clean
         clean = total_clean board
         kids = kids_in_board board
         rob = kids_in_robot_board board
+
+is_robot_dirt::Cell -> Bool
+is_robot_dirt c = c == RobotDirt || c == RobotDirtCleaning 
+                || c == RobotDirtPassingCorral || c == RobotDirtPassingKidInCorral
+
+is_robot_kid::Cell -> Bool
+is_robot_kid c = c == RobotKid || c == RobotKidCleaning 
+                || c == RobotKidPassingCorral || c == RobotKidPassingKidInCorral
+
+is_kid_in_robot::Cell -> Bool
+is_kid_in_robot c = c == KidInRobot || c == KidInRobotPassingKidInCorral || c == KidInRobotCleaning
+
+is_robot::Cell -> Bool
+is_robot c = c == RobotAndKidInCorral || is_kid_in_robot c || is_robot_dirt c || is_robot_kid c

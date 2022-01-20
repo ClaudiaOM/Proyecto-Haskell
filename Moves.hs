@@ -86,11 +86,18 @@ move_kid_empty_cell board (xi,yi) (xf,yf) kids seed =
 
 move_one_direction_obstacle::Matrix -> Position -> Direction -> (Bool, (Int,Int))
 move_one_direction_obstacle board (xi,yi) dir =
-    if board ! (xi,yi) == Obstacle
-        then move_one_direction_obstacle board (move (xi,yi) dir) dir
-    else if  board ! (xi,yi) == Empty
-        then (True, (xi,yi))
-    else (False, (xi,yi))
+    if valid_movement (xi,yi) (n,m)
+        then
+        if  board ! (xi,yi) == Obstacle
+            then move_one_direction_obstacle board (move (xi,yi) dir) dir
+        else if  board ! (xi,yi) == Empty
+            then (True, (xi,yi))
+        else (False, (xi,yi))
+    else (False, (-1,-1))
+    where
+        n = fst $ size board
+        m = snd $ size board
+
 
 move_all_obstacles:: Matrix -> Position -> Direction -> (Matrix, (Int, Int))
 move_all_obstacles board (xi,yi) dir = 
@@ -122,17 +129,21 @@ move_kid board (x,y)  = do
         d = directions !! r
         op_dir = oposite_directions !! r
         new_pos = move (x,y) d
-        cell = board ! new_pos
-        obs = move_one_direction_obstacle board new_pos d
-        flag_obs = fst obs
-        last_pos = snd obs
-        res = if valid_movement new_pos (n,m) &&  not (occupied board new_pos) 
-                then move_kid_empty_cell board (x,y) new_pos kids s
-            else if valid_movement new_pos (n,m) && cell == Obstacle && flag_obs == True
-                then move_kid_obstacle board (x,y) last_pos op_dir
-            else 
-                board 
-    return res
+    if not(valid_movement new_pos (n,m)) 
+        then return board
+    else do
+        let
+            cell = board ! new_pos
+            obs = move_one_direction_obstacle board new_pos d
+            flag_obs = fst obs
+            last_pos = snd obs
+            res = if valid_movement new_pos (n,m) &&  not (occupied board new_pos) 
+                    then move_kid_empty_cell board (x,y) new_pos kids s
+                else if valid_movement new_pos (n,m) && cell == Obstacle && flag_obs == True
+                    then move_kid_obstacle board (x,y) last_pos op_dir
+                else 
+                    board 
+        return res
     
 
 
@@ -152,10 +163,10 @@ not_visited board bfs inf pos =
 robot_can_move:: Matrix -> Position -> Cell -> Bool
 robot_can_move board pos c =
     if c == Kid
-        then cell == Empty || cell == Corral || cell == Dirt || cell == Kid 
+        then cell == Empty || cell == Corral || cell == Dirt || cell == Kid || cell == KidInCorral
     else if c == Corral
-        then cell == Empty || cell == Dirt || cell == Corral -- || cell == KidInCorral
-    else cell == Empty || cell == Corral || cell == Dirt
+        then cell == Empty || cell == Dirt || cell == Corral || cell == KidInCorral
+    else cell == Empty || cell == Corral || cell == Dirt || cell == KidInCorral
     where 
         cell = board ! pos
 
@@ -212,52 +223,80 @@ build_path matrix begin end =
 
 matrix_robot::Matrix -> Position -> (MatrixInt, Cell)
 matrix_robot board position =
-    if robot_type == RobotDirt || robot_type == RobotDirtPassingCorral
+    if is_robot_dirt robot_type
         then (calculate_matrix_BFS board position Dirt, Dirt)
-    else if robot_type == RobotKid || robot_type == RobotKidPassingCorral
+    else if is_robot_kid robot_type
         then (calculate_matrix_BFS board position Kid, Kid)
-    else if robot_type == KidInRobot
+    else if is_kid_in_robot robot_type
         then (calculate_matrix_BFS board position Corral, Corral)
     else (calculate_matrix_BFS board position Kid, Kid) -- TODO ver que hacer con el robot que busca todo
     where
         robot_type = board ! position
 
-is_robot::Matrix -> Position -> Bool
-is_robot board position = 
-    c == Robot || c == KidInRobot || c == RobotKid || c == RobotDirt || c == RobotPassingCorral
-    || c == RobotKidPassingCorral || c == RobotDirtPassingCorral || c == RobotKidInCorral
-    where
-        c = board ! position
 
+change_cell_robot_dirt::Matrix -> Position -> Position -> Cell -> Matrix
+change_cell_robot_dirt board begin end cell
+    | e == Empty = f RobotDirt 
+    | e == Dirt = f RobotDirtCleaning
+    | e == Corral =  f RobotDirtPassingCorral
+    | e == KidInCorral = f RobotDirtPassingKidInCorral
+    | otherwise = board
+    where 
+        e = board ! end
+        f = move_cell_change_final board begin end cell
+
+
+change_cell_robot_kid::Matrix -> Position -> Position -> Cell -> Matrix
+change_cell_robot_kid board begin end cell
+    | e == Empty = f RobotKid 
+    | e == Dirt = f RobotKidCleaning
+    | e == Corral =  f RobotKidPassingCorral
+    | e == KidInCorral = f RobotKidPassingKidInCorral
+    | otherwise = if b == RobotKidPassingKidInCorral then board else f KidInRobot
+    where 
+        e = board ! end
+        b = board ! begin
+        f = move_cell_change_final board begin end cell
+
+
+change_cell_kid_in_robot::Matrix -> Position -> Position -> Cell -> Matrix
+change_cell_kid_in_robot board begin end cell
+    | e == Empty = f KidInRobot 
+    | e == Dirt = f KidInRobotCleaning
+    | e == Corral =  f RobotAndKidInCorral
+    | e == KidInCorral = f KidInRobotPassingKidInCorral
+    | otherwise = board
+    where 
+        e = board ! end
+        f = move_cell_change_final board begin end cell
+
+change_cell_robot_and_kid_in_corral::Matrix -> Position -> Position -> Matrix
+change_cell_robot_and_kid_in_corral board begin end 
+    | e == Empty = f RobotKid 
+    | e == Dirt = f RobotKidCleaning
+    | e == Corral =  f RobotKidPassingCorral
+    | e == KidInCorral = f RobotKidPassingKidInCorral
+    | otherwise = f KidInRobot
+    where 
+        e = board ! end
+        f = move_cell_change_final board begin end KidInCorral
 
 change_cell_robot_move::Matrix -> Position -> Position -> Matrix
-change_cell_robot_move board begin end = 
-    if b == RobotKidPassingCorral && e == Kid
-        then move_cell_change_final board begin end Corral KidInRobot
-    else if b == RobotKidPassingCorral && e == Dirt
-        then move_cell_change_final board begin end Corral KidInRobot
-    else if e == Kid 
-        then move_cell_change_final board begin end Empty KidInRobot
-    else if b == KidInRobot && e == Corral
-        then move_cell_change_final board begin end Empty RobotKidInCorral
-    else if b == RobotKidInCorral && e == Corral 
-        then move_cell_change_final board begin end KidInCorral RobotKidPassingCorral
-    else if b == RobotKidInCorral && (e == Empty || e == Dirt)
-        then move_cell_change_final board begin end KidInCorral RobotKid
-    else if b == RobotKid && e == Corral
-        then move_cell_change_final board begin end Empty RobotKidPassingCorral
-    else if b == RobotDirt && e == Corral
-        then move_cell_change_final board begin end Empty RobotDirtPassingCorral
-    else if (b == RobotDirtPassingCorral || b == RobotKidPassingCorral) && e == Corral
-        then move_cell board begin end Corral
-    else if (b == RobotPassingCorral || b == RobotDirtPassingCorral) && (e == Empty || e == Dirt)
-        then move_cell_change_final board begin end Corral RobotDirt
-    else if (b == RobotPassingCorral || b == RobotKidPassingCorral) && (e == Empty || e == Dirt)
-        then move_cell_change_final board begin end Corral RobotKid
-    else move_cell board begin end Empty
+change_cell_robot_move board begin end 
+    | b == RobotDirt || b == RobotDirtCleaning = rd Empty
+    | b == RobotDirtPassingCorral = rd Corral
+    | b == RobotDirtPassingKidInCorral = rd KidInCorral
+    | b == RobotKid || b == RobotKidCleaning = rk Empty
+    | b == RobotKidPassingCorral = rk Corral
+    | b == RobotKidPassingKidInCorral = rk KidInCorral
+    | b == KidInRobot || b == KidInRobotCleaning = kr Empty
+    | b == KidInRobotPassingKidInCorral = kr KidInCorral
+    | otherwise = change_cell_robot_and_kid_in_corral board begin end
     where 
+        rd = change_cell_robot_dirt board begin end 
+        rk = change_cell_robot_kid board begin end 
+        kr = change_cell_kid_in_robot board begin end
         b = board ! begin
-        e = board ! end
 
 
 move_robot::Matrix -> Position -> Matrix
@@ -287,7 +326,7 @@ move_all_robot:: Matrix -> Matrix
 move_all_robot board = do 
     let n = fst $ size board
         m = snd $ size board
-        r = [(i,j) | i <- [0..n], j <- [0..m], is_robot board (i,j)]
+        r = [(i,j) | i <- [0..n], j <- [0..m], is_robot $ board ! (i,j)]
     foldl move_robot board r   
 
 
