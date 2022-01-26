@@ -223,13 +223,15 @@ build_path matrix begin end =
 
 matrix_robot::Matrix -> Position -> (MatrixInt, Cell)
 matrix_robot board position =
-    if is_robot_dirt robot_type
+    if (not(kids_in_board board) && not(kids_in_robot_board board))
+        then (calculate_matrix_BFS board position Dirt, Dirt)   
+    else if is_robot_dirt robot_type
         then (calculate_matrix_BFS board position Dirt, Dirt)
     else if is_robot_kid robot_type
         then (calculate_matrix_BFS board position Kid, Kid)
     else if is_kid_in_robot robot_type
         then (calculate_matrix_BFS board position Corral, Corral)
-    else (calculate_matrix_BFS board position Kid, Kid) -- TODO ver que hacer con el robot que busca todo
+    else (calculate_matrix_BFS board position Dirt, Dirt) -- TODO ver que hacer con el robot que busca todo
     where
         robot_type = board ! position
 
@@ -300,7 +302,7 @@ change_cell_robot_move board begin end
 
 
 move_robot::Matrix -> Position -> Matrix
-move_robot board position = 
+move_robot board position =
     if closest /= (-1,-1) && matrix ! closest /= inf
         then 
         change_cell_robot_move board position movement
@@ -315,7 +317,7 @@ move_robot board position =
         cell = snd temp
         closest = closest_job board matrix cell
         path = build_path matrix position closest
-        movement = head path
+        movement = head path    
 
 
 move_all_robot:: Matrix -> Bool -> Matrix
@@ -327,8 +329,7 @@ move_all_robot board flag =
         m = snd $ size board
         b = move_all_kid_in_robot board
         r = [(i,j) | i <- [0..n], j <- [0..m], is_robot $ b ! (i,j)]
-        t = [(i,j) | i <- [0..n], j <- [0..m], is_robot $ b ! (i,j) ,
-            not(cleaning_robots $ b ! (i,j))]
+        t = [(i,j) | i <- [0..n], j <- [0..m], is_robot $ b ! (i,j), not(cleaning_robots $ b ! (i,j))]
 
 move_all_kid_in_robot::  Matrix -> Matrix
 move_all_kid_in_robot board = foldl move_robot board k
@@ -341,6 +342,6 @@ move_all_kid_in_robot board = foldl move_robot board k
 show_bfs_matrix:: MatrixInt -> String
 show_bfs_matrix board = unlines $ map row [0..n]
     where
-        n = fst $ size board
-        m = snd $ size board
+        n = 5 --fst $ size board
+        m = 5 --snd $ size board
         row i = unwords [show (board ! (i,j)) | j <- [0..m]] 

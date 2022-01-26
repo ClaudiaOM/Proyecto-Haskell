@@ -19,7 +19,8 @@ module Board
     change_cell,
     remake_corral,
     remake_cells,
-    remake_board
+    remake_board,
+    kids_in_robot_board
 ) where
 
 import Data.Array
@@ -41,18 +42,18 @@ instance Show Cell where
     show KidInCorral = "|k|"
     show Kid = "|K|"
 
-    show RobotKid = "|R|"
-    show RobotKidCleaning = "|R|"
-    show RobotKidPassingCorral = "|R|"
-    show RobotKidPassingKidInCorral = "|R|"
+    show RobotKid = "|0|"
+    show RobotKidCleaning = "|1|"
+    show RobotKidPassingCorral = "|2|"
+    show RobotKidPassingKidInCorral = "|3|"
 
-    show RobotDirt = "|A|"
-    show RobotDirtCleaning = "|A|"
-    show RobotDirtPassingCorral = "|A|"
-    show RobotDirtPassingKidInCorral= "|A|"
+    show RobotDirt = "|4|"
+    show RobotDirtCleaning = "|5|"
+    show RobotDirtPassingCorral = "|6|"
+    show RobotDirtPassingKidInCorral= "|7|"
 
-    show KidInRobot = "|r|"
-    show KidInRobotCleaning = "|r|"
+    show KidInRobot = "|8|"
+    show KidInRobotCleaning = "|9|"
     show KidInRobotPassingKidInCorral = "|r|"
 
     show RobotAndKidInCorral = "|C|"
@@ -173,8 +174,8 @@ total_clean_cells board = length $ filter (\v -> board ! v == Empty) pos
 total_clean:: Matrix -> Bool
 total_clean board = div (t * 100) (n * m) >= 60
     where
-        n = fst $ size board
-        m = snd $ size board
+        n = (fst $ size board) + 1
+        m = (snd $ size board) + 1
         t = total_clean_cells board
 
 finished:: Matrix -> Bool
