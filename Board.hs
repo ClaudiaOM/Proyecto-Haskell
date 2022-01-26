@@ -12,7 +12,14 @@ module Board
     is_kid_in_robot,
     is_robot_dirt,
     is_robot_kid,
-    is_robot
+    is_robot,
+    is_kid_in_robot_not_cleaning,
+    cleaning_robots,
+    is_corral,
+    change_cell,
+    remake_corral,
+    remake_cells,
+    remake_board
 ) where
 
 import Data.Array
@@ -34,19 +41,19 @@ instance Show Cell where
     show KidInCorral = "|k|"
     show Kid = "|K|"
 
-    show RobotKid = "|1|"
-    show RobotKidCleaning = "|2|"
-    show RobotKidPassingCorral = "|3|"
-    show RobotKidPassingKidInCorral = "|4|"
+    show RobotKid = "|R|"
+    show RobotKidCleaning = "|R|"
+    show RobotKidPassingCorral = "|R|"
+    show RobotKidPassingKidInCorral = "|R|"
 
-    show RobotDirt = "|5|"
-    show RobotDirtCleaning = "|6|"
-    show RobotDirtPassingCorral = "|7|"
-    show RobotDirtPassingKidInCorral= "|8|"
+    show RobotDirt = "|A|"
+    show RobotDirtCleaning = "|A|"
+    show RobotDirtPassingCorral = "|A|"
+    show RobotDirtPassingKidInCorral= "|A|"
 
     show KidInRobot = "|r|"
-    show KidInRobotCleaning = "|9|"
-    show KidInRobotPassingKidInCorral = "|0|"
+    show KidInRobotCleaning = "|r|"
+    show KidInRobotPassingKidInCorral = "|r|"
 
     show RobotAndKidInCorral = "|C|"
 
@@ -67,6 +74,8 @@ board_to_string board = unlines $ map row [0..n]
 occupied :: Matrix -> Position -> Bool
 occupied matrix position = matrix ! position /= Empty
 
+change_cell:: Matrix -> Cell -> Position -> Matrix
+change_cell board cell position = board // [(position, cell)]
 
 delete_sub_list :: [(Int, Int)] -> [(Int, Int)] -> [(Int, Int)]
 delete_sub_list a b = filter (`notElem` a) b 
@@ -93,7 +102,6 @@ fill_cell board total positions seed cell=
         b = board // [(p, cell)]
         
 
-
 fill_board:: Matrix -> (Int, Int, Int) -> (Int, Int, Int, Int, Int, Int) -> Matrix  
 fill_board board (cx, cy, r) (size_cor_x, size_cor_y, total_robot_dirt, total_robot_kid, total_obs, total_kid) = board4   
     where
@@ -116,6 +124,37 @@ fill_board board (cx, cy, r) (size_cor_x, size_cor_y, total_robot_dirt, total_ro
         board3 = fst temp2
         temp3 = fill_cell board3 total_kid positions_3 (r * cy) Kid
         board4 = fst temp3
+
+
+remake_corral:: Matrix -> Matrix -> [(Int,Int)] -> Matrix
+remake_corral new_board board [] = new_board 
+remake_corral new_board board (x:xs) = remake_corral board1 board xs
+    where 
+        cell = board ! x
+        board1 = new_board // [(x,cell)]
+
+
+remake_cells:: Matrix -> Matrix -> Int -> [(Int,Int)] -> Matrix
+remake_cells new_board board s [] = new_board 
+remake_cells new_board board s (x:xs) = remake_cells board1 board (s + 1) xs 
+    where 
+        n = fst $ size board
+        m = snd $ size board
+        empty_positions =  [(i,j) | i <- [0..n], j <- [0..m], new_board ! (i,j) == Empty]
+        cell = board ! x        
+        board1 = fst $ fill_cell new_board 1 empty_positions s cell
+ 
+remake_board:: Matrix -> Matrix
+remake_board board = board2
+    where
+        n = fst $ size board
+        m = snd $ size board
+        pieces = [(i,j) | i <- [0..n], j <- [0..m], board ! (i,j) /= Empty && not (is_corral $ board ! (i,j)) ]
+        corral = [(i,j) | i <- [0..n], j <- [0..m], is_corral $ board ! (i,j)]
+
+        board0 = array ((0,0),(n,m)) [((i,j), Empty) | i <- [0..n], j <- [0..m]]
+        board1 = remake_corral board0 board corral 
+        board2 = remake_cells board1 board 2547836 pieces
 
 
 kids_in_board:: Matrix -> Bool
@@ -156,5 +195,15 @@ is_robot_kid c = c == RobotKid || c == RobotKidCleaning
 is_kid_in_robot::Cell -> Bool
 is_kid_in_robot c = c == KidInRobot || c == KidInRobotPassingKidInCorral || c == KidInRobotCleaning
 
+is_kid_in_robot_not_cleaning::Cell -> Bool
+is_kid_in_robot_not_cleaning c = c == KidInRobot || c == KidInRobotPassingKidInCorral
+
 is_robot::Cell -> Bool
 is_robot c = c == RobotAndKidInCorral || is_kid_in_robot c || is_robot_dirt c || is_robot_kid c
+
+cleaning_robots::Cell -> Bool
+cleaning_robots c = c == RobotDirtCleaning || c == RobotKidCleaning || c == KidInRobotCleaning 
+
+is_corral::Cell -> Bool
+is_corral c = c == Corral || c == KidInCorral || c == RobotAndKidInCorral || c == RobotDirtPassingCorral
+                || c == RobotDirtPassingKidInCorral || c == RobotKidPassingCorral || c == RobotKidPassingKidInCorral

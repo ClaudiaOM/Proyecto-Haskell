@@ -303,12 +303,8 @@ move_robot::Matrix -> Position -> Matrix
 move_robot board position = 
     if closest /= (-1,-1) && matrix ! closest /= inf
         then 
-        --trace(show position)        
-        --trace(show closest)
-        --trace(show_bfs_matrix matrix)
         change_cell_robot_move board position movement
     else 
-        --trace(show position)
         board
     where
         n = fst $ size board
@@ -322,17 +318,29 @@ move_robot board position =
         movement = head path
 
 
-move_all_robot:: Matrix -> Matrix
-move_all_robot board = do 
-    let n = fst $ size board
+move_all_robot:: Matrix -> Bool -> Matrix
+move_all_robot board flag =   
+    if flag == True then foldl move_robot b r 
+    else foldl move_robot b t
+    where
+        n = fst $ size board
         m = snd $ size board
-        r = [(i,j) | i <- [0..n], j <- [0..m], is_robot $ board ! (i,j)]
-    foldl move_robot board r   
+        b = move_all_kid_in_robot board
+        r = [(i,j) | i <- [0..n], j <- [0..m], is_robot $ b ! (i,j)]
+        t = [(i,j) | i <- [0..n], j <- [0..m], is_robot $ b ! (i,j) ,
+            not(cleaning_robots $ b ! (i,j))]
+
+move_all_kid_in_robot::  Matrix -> Matrix
+move_all_kid_in_robot board = foldl move_robot board k
+    where
+        n = fst $ size board
+        m = snd $ size board
+        k = [(i,j) | i <- [0..n], j <- [0..m], is_kid_in_robot_not_cleaning $ board ! (i,j)]
 
 
 show_bfs_matrix:: MatrixInt -> String
 show_bfs_matrix board = unlines $ map row [0..n]
     where
-        n = 5
-        m = 5
+        n = fst $ size board
+        m = snd $ size board
         row i = unwords [show (board ! (i,j)) | j <- [0..m]] 
