@@ -1,37 +1,24 @@
-module Board
-( 
-    Cell(..), 
-    size,
-    board_to_string,
-    Matrix(..),
-    occupied,
-    fill_board,
-    kids_in_board,
-    fill_cell,
-    finished,
-    is_kid_in_robot,
-    is_robot_dirt,
-    is_robot_kid,
-    is_robot,
-    is_kid_in_robot_not_cleaning,
-    cleaning_robots,
-    is_corral,
-    change_cell,
-    remake_corral,
-    remake_cells,
-    remake_board,
-    kids_in_robot_board
-) where
+module Board where
 
 import Data.Array
 import Data.List(unlines, unwords)
 import Random
+import Debug.Trace
+
+
+data State = Moving | Cleaning | CarryingKid | CarryingKidCleaning | PassingCorral 
+            | PassingKidInCorral | CarryingKidPassingKidInCorral | KidAndRobotInCorral
+            deriving(Eq, Show)
+
 
 data Cell = Empty | Dirt | Corral | Obstacle | KidInCorral | Kid |   --Cells
             RobotKid | RobotKidCleaning | RobotKidPassingCorral | RobotKidPassingKidInCorral |
             RobotDirt | RobotDirtCleaning | RobotDirtPassingCorral | RobotDirtPassingKidInCorral |
             KidInRobot | KidInRobotCleaning | KidInRobotPassingKidInCorral |
-            RobotAndKidInCorral  
+            RobotAndKidInCorral |
+
+            --DeductiveRobot
+            Robot (Position, Cell, State)
             deriving(Eq)
 
 instance Show Cell where
@@ -58,9 +45,20 @@ instance Show Cell where
 
     show RobotAndKidInCorral = "|C|"
 
+    show (Robot (_,_,CarryingKid)) = "|1|"
+    show (Robot (_,_,KidAndRobotInCorral)) = "|2|"
+    show (Robot (_,_,Moving)) = "|3|"
+    show (Robot (_,_,Cleaning)) = "|4|"
+    show (Robot (_,_,CarryingKidCleaning)) = "|5|"
+    show (Robot (_,_,CarryingKidPassingKidInCorral)) = "|6|"
+    show (Robot (_,_,PassingCorral)) = "|7|"
+    show (Robot (_,_,PassingKidInCorral)) = "|8|"
+   -- show (Robot _) = "|R|"
+
 type Matrix = Array (Int, Int) Cell
-type Position = (Int, Int)
+type Position = (Int, Int) 
 type Matrix_Size = (Int, Int)
+type MatrixInt = Array (Int, Int) Int
 
 size :: Matrix -> (Int, Int)
 size b = snd $ bounds b
@@ -104,7 +102,8 @@ fill_cell board total positions seed cell=
         
 
 fill_board:: Matrix -> (Int, Int, Int) -> (Int, Int, Int, Int, Int, Int) -> Matrix  
-fill_board board (cx, cy, r) (size_cor_x, size_cor_y, total_robot_dirt, total_robot_kid, total_obs, total_kid) = board4   
+fill_board board (cx, cy, r) (size_cor_x, size_cor_y, total_robot_dirt, 
+                total_robot_kid, total_obs, total_kid) = board4   
     where
         n = fst $ size board
         m = snd $ size board
@@ -114,10 +113,10 @@ fill_board board (cx, cy, r) (size_cor_x, size_cor_y, total_robot_dirt, total_ro
         corral = positions_corral (corral_x, corral_y) (size_cor_x, size_cor_y)
         boardt = fill_corral board corral
         positions_t = delete_sub_list corral positions
-        temp0 = fill_cell boardt total_robot_dirt positions_t r RobotDirt
+        temp0 = fill_cell boardt total_robot_dirt positions_t r (Robot ((-1,-1), Empty, Moving))
         positions_0 = snd temp0
         board0 = fst temp0
-        temp1 = fill_cell board0 total_robot_kid positions_0 r RobotKid 
+        temp1 = fill_cell board0 total_robot_kid positions_0 r (Robot ((-1,-1), Empty, Moving))
         positions_2 = snd temp1
         board2 = fst temp1
         temp2 = fill_cell board2 total_obs positions_2 (r * cx) Obstacle
@@ -157,6 +156,11 @@ remake_board board = board2
         board1 = remake_corral board0 board corral 
         board2 = remake_cells board1 board 2547836 pieces
 
+dirt_in_board:: Matrix -> Bool
+dirt_in_board board = any (Dirt ==) board
+
+free_corral::Matrix -> Bool
+free_corral board = any (Corral ==) board
 
 kids_in_board:: Matrix -> Bool
 kids_in_board board =  any (Kid == ) board 
@@ -165,7 +169,7 @@ kids_in_robot_board:: Matrix -> Bool
 kids_in_robot_board board =  any (is_kid_in_robot ) board 
 
 total_clean_cells:: Matrix -> Int
-total_clean_cells board = length $ filter (\v -> board ! v == Empty) pos
+total_clean_cells board = length $ filter (\v -> board ! v == Empty || board ! v == Obstacle) pos
                         where 
                             n = fst $ size board
                             m = snd $ size board
@@ -185,6 +189,8 @@ finished board = not (kids) && not (rob) && clean
         kids = kids_in_board board
         rob = kids_in_robot_board board
 
+
+
 is_robot_dirt::Cell -> Bool
 is_robot_dirt c = c == RobotDirt || c == RobotDirtCleaning 
                 || c == RobotDirtPassingCorral || c == RobotDirtPassingKidInCorral
@@ -194,17 +200,32 @@ is_robot_kid c = c == RobotKid || c == RobotKidCleaning
                 || c == RobotKidPassingCorral || c == RobotKidPassingKidInCorral
 
 is_kid_in_robot::Cell -> Bool
+is_kid_in_robot (Robot (_ , _, state)) = state == CarryingKid || state == CarryingKidCleaning ||
+                                          state == CarryingKidPassingKidInCorral
 is_kid_in_robot c = c == KidInRobot || c == KidInRobotPassingKidInCorral || c == KidInRobotCleaning
 
 is_kid_in_robot_not_cleaning::Cell -> Bool
+is_kid_in_robot_not_cleaning (Robot (_ , _, state)) = state == CarryingKid || state == CarryingKidPassingKidInCorral
 is_kid_in_robot_not_cleaning c = c == KidInRobot || c == KidInRobotPassingKidInCorral
 
 is_robot::Cell -> Bool
+is_robot (Robot _) = True
 is_robot c = c == RobotAndKidInCorral || is_kid_in_robot c || is_robot_dirt c || is_robot_kid c
 
 cleaning_robots::Cell -> Bool
+cleaning_robots (Robot (_ , _, state)) = state == Cleaning || state == CarryingKidCleaning
 cleaning_robots c = c == RobotDirtCleaning || c == RobotKidCleaning || c == KidInRobotCleaning 
 
 is_corral::Cell -> Bool
+is_corral (Robot (_ , _, s)) = s == PassingCorral || s == PassingKidInCorral ||
+                               s == CarryingKidPassingKidInCorral || s == KidAndRobotInCorral
 is_corral c = c == Corral || c == KidInCorral || c == RobotAndKidInCorral || c == RobotDirtPassingCorral
                 || c == RobotDirtPassingKidInCorral || c == RobotKidPassingCorral || c == RobotKidPassingKidInCorral
+
+move_cell_change_final:: Matrix -> Position -> Position -> Cell -> Cell -> Matrix
+move_cell_change_final board (xi,yi) (xf,yf) celli cellf = board2
+    where
+        board1 =  board // [((xi,yi), celli )]
+        board2 = board1 // [((xf,yf), cellf)]
+
+
