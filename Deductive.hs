@@ -212,9 +212,19 @@ change_cell_robot_move board begin end
         (Robot (_,_,state)) = board ! begin
         e = board ! end
 
+my_mod::Int -> Int
+my_mod turn = mod turn change_environment
 
-move_robot::Matrix -> Position -> Matrix
-move_robot board pos =
+distance::MatrixInt ->  Position -> Int -> Bool
+distance matrix end turn = e > d
+    where 
+        e = matrix ! end
+        mm = my_mod turn
+        d = change_environment - mm
+
+
+move_robot::Int -> Matrix -> Position -> Matrix
+move_robot turn board pos =
     if position == (-1,-1) then
         if state == CarryingKid then
             if free_corral board && rc_move /= (-1,-1) then
@@ -286,8 +296,15 @@ move_robot board pos =
                     board
         else 
             if ok_move /= (-1,-1) then
-                trace(show "14")
-                change_cell_robot_move ok_board pos ok_move  
+                if distance ok_matrix ok_goal turn then
+                    trace(show "20")
+                    change_cell_robot_move ok_board pos ok_move
+                else if not(distance ok_matrix ok_goal turn) 
+                    && dirt_in_board board && d_move /= (-1,-1) then
+                        change_cell_robot_move d_board pos d_move
+                else           
+                    trace(show "22")
+                    board // [(pos, (Robot ((-1,-1),Kid,state)))]
             else
                 trace(show "15")
                 board // [(pos, (Robot ((-1,-1),Kid,state)))]
@@ -334,20 +351,22 @@ move_robot board pos =
         ok = objective_move board ok_matrix pos 
         ok_goal = fst ok
         ok_move = snd ok
+        --ok_distance = distance ok_matrix pos ok_goal 6
         ok_board = board // [(pos, (Robot (ok_goal,Kid,state)))]
 
 
 
 
-move_all_robot:: Matrix -> Bool -> Matrix
-move_all_robot board flag =   
+move_all_robot:: Matrix -> Int -> Matrix
+move_all_robot board turn =   
     if flag == True then
-        foldl move_robot b r 
+        foldl (move_robot turn) b r 
     else 
-        foldl move_robot b t
+        foldl (move_robot turn) b t
     where        
+        flag = even turn
         k = [(i,j) | i <- [0..n], j <- [0..m], is_kid_in_robot_not_cleaning $ board ! (i,j)]
-        b = foldl move_robot board k
+        b = foldl (move_robot turn) board k
         r = [(i,j) | i <- [0..n], j <- [0..m], is_robot $ b ! (i,j)]
         t = [(i,j) | i <- [0..n], j <- [0..m], is_robot $ b ! (i,j), not(cleaning_robots $ b ! (i,j))]
 

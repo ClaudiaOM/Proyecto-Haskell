@@ -145,9 +145,7 @@ move_all_kid board = do
     foldlM move_kid board r
 
 
-show_bfs_matrix:: MatrixInt -> String
-show_bfs_matrix board = unlines $ map row [0..a]
+show_bfs_matrix:: MatrixInt -> Int -> Int -> String
+show_bfs_matrix board a b = unlines $ map row [0..a]
     where
-        a = 7 --fst $ size board
-        b = 7 --snd $ size board
         row i = unwords [show (board ! (i,j)) | j <- [0..b]] 
