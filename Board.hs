@@ -4,18 +4,18 @@ import Data.Array
 import Data.List(unlines, unwords)
 import Random
 import Debug.Trace
+import Constants
 
 
 data State = Moving | Cleaning | CarryingKid | CarryingKidCleaning | PassingCorral 
-            | PassingKidInCorral | CarryingKidPassingKidInCorral | KidAndRobotInCorral
+            | PassingKidInCorral | CarryingKidPassingCorral | KidAndRobotInCorral
             deriving(Eq, Show)
 
 
 data Cell = Empty | Dirt | Corral | Obstacle | KidInCorral | Kid |   --Cells
             RobotKid | RobotKidCleaning | RobotKidPassingCorral | RobotKidPassingKidInCorral |
             RobotDirt | RobotDirtCleaning | RobotDirtPassingCorral | RobotDirtPassingKidInCorral |
-            KidInRobot | KidInRobotCleaning | KidInRobotPassingKidInCorral |
-            RobotAndKidInCorral |
+            KidInRobot | KidInRobotCleaning | KidInRobotPassingCorral | RobotAndKidInCorral |
 
             --DeductiveRobot
             Robot (Position, Cell, State)
@@ -41,18 +41,18 @@ instance Show Cell where
 
     show KidInRobot = "|8|"
     show KidInRobotCleaning = "|9|"
-    show KidInRobotPassingKidInCorral = "|r|"
+    show KidInRobotPassingCorral = "|r|"
 
     show RobotAndKidInCorral = "|C|"
 
-    show (Robot (_,_,CarryingKid)) = "|T|"
-    show (Robot (_,_,KidAndRobotInCorral)) = "|T|"
-    show (Robot (_,_,Moving)) = "|T|"
-    show (Robot (_,_,Cleaning)) = "|T|"
-    show (Robot (_,_,CarryingKidCleaning)) = "|T|"
-    show (Robot (_,_,CarryingKidPassingKidInCorral)) = "|T|"
-    show (Robot (_,_,PassingCorral)) = "|T|"
-    show (Robot (_,_,PassingKidInCorral)) = "|T|"
+    show (Robot (_,_,CarryingKid)) = "|0|"
+    show (Robot (_,_,KidAndRobotInCorral)) = "|1|"
+    show (Robot (_,_,Moving)) = "|2|"
+    show (Robot (_,_,Cleaning)) = "|3|"
+    show (Robot (_,_,CarryingKidCleaning)) = "|4|"
+    show (Robot (_,_,CarryingKidPassingCorral)) = "|5|"
+    show (Robot (_,_,PassingCorral)) = "|6|"
+    show (Robot (_,_,PassingKidInCorral)) = "|7|"
    -- show (Robot _) = "|R|"
 
 type Matrix = Array (Int, Int) Cell
@@ -206,16 +206,12 @@ total_dirt board =  length $ filter (\v -> board ! v == Dirt) pos
 total_clean:: Matrix -> Bool
 total_clean board = 100 - div (x * 100) (t) >= 60
     where
-        n = (fst $ size board) + 1
-        m = (snd $ size board) + 1
         t = total_clean_cells board
         x = total_dirt board
 
 percent_clean::Matrix -> Int
 percent_clean board = 100 - div (x * 100) (t) 
     where
-        n = (fst $ size board) + 1
-        m = (snd $ size board) + 1
         t = total_clean_cells board
         x = total_dirt board
 
@@ -225,6 +221,15 @@ finished board = not (kids) && not (rob) && clean
         clean = total_clean board
         kids = kids_in_board board
         rob = kids_in_robot_board board
+
+first_corral::Matrix ->  Position
+first_corral board = 
+    if null positions
+        then (-1,-1)
+    else 
+        head positions
+    where
+        positions = [(i,j) | i <- [0..n], j <- [0..m], (is_corral $ board ! (i,j))  && board ! (i,j) /= KidInCorral]
 
 
 is_robot_dirt::Cell -> Bool
@@ -237,12 +242,12 @@ is_robot_kid c = c == RobotKid || c == RobotKidCleaning
 
 is_kid_in_robot::Cell -> Bool
 is_kid_in_robot (Robot (_ , _, state)) = state == CarryingKid || state == CarryingKidCleaning ||
-                                          state == CarryingKidPassingKidInCorral
-is_kid_in_robot c = c == KidInRobot || c == KidInRobotPassingKidInCorral || c == KidInRobotCleaning
+                                          state == CarryingKidPassingCorral
+is_kid_in_robot c = c == KidInRobot || c == KidInRobotCleaning || c == KidInRobotPassingCorral
 
 is_kid_in_robot_not_cleaning::Cell -> Bool
-is_kid_in_robot_not_cleaning (Robot (_ , _, state)) = state == CarryingKid || state == CarryingKidPassingKidInCorral
-is_kid_in_robot_not_cleaning c = c == KidInRobot || c == KidInRobotPassingKidInCorral
+is_kid_in_robot_not_cleaning (Robot (_ , _, state)) = state == CarryingKid || state == CarryingKidPassingCorral
+is_kid_in_robot_not_cleaning c = c == KidInRobot || c == KidInRobotPassingCorral
 
 is_robot::Cell -> Bool
 is_robot (Robot _) = True
@@ -254,11 +259,11 @@ cleaning_robots c = c == RobotDirtCleaning || c == RobotKidCleaning || c == KidI
 
 is_corral::Cell -> Bool
 is_corral (Robot (_ , _, s)) = s == PassingCorral || s == PassingKidInCorral ||
-                               s == CarryingKidPassingKidInCorral || s == KidAndRobotInCorral
+                               s == CarryingKidPassingCorral || s == KidAndRobotInCorral
 is_corral c = c == Corral || c == KidInCorral || c == RobotAndKidInCorral || c == RobotDirtPassingCorral
-                || c == RobotDirtPassingKidInCorral || c == RobotKidPassingCorral || c == RobotKidPassingKidInCorral
-                || c == KidInRobotPassingKidInCorral
-
+                || c == RobotDirtPassingKidInCorral || c == RobotKidPassingCorral 
+                || c == RobotKidPassingKidInCorral  || c == KidInRobotPassingCorral
+                
 
 move_cell_change_final:: Matrix -> Position -> Position -> Cell -> Cell -> Matrix
 move_cell_change_final board (xi,yi) (xf,yf) celli cellf = board2

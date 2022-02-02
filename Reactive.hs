@@ -9,6 +9,7 @@ import Debug.Trace
 import Data.List(unlines, unwords)
 import Data.Foldable
 import Moves
+import Constants
 
 not_visited::Matrix -> MatrixInt -> Int -> Position -> Bool
 not_visited board bfs inf pos = 
@@ -21,7 +22,7 @@ robot_can_move board pos c =
     if c == Kid
         then cell == Empty || cell == Corral || cell == Dirt || cell == Kid || cell == KidInCorral
     else if c == Corral
-        then cell == Empty || cell == Dirt || cell == Corral || cell == KidInCorral
+        then cell == Empty || cell == Dirt || cell == Corral
     else cell == Empty || cell == Corral || cell == Dirt || cell == KidInCorral
     where 
         cell = board ! pos
@@ -44,22 +45,20 @@ bfs board matrix positions cell = bfs board updated_bfs new_positions cell
 calculate_matrix_BFS:: Matrix -> Position -> Cell -> MatrixInt
 calculate_matrix_BFS board pos cell = bfs board matrix [pos] cell
     where 
-        n = fst $ size board
-        m = snd $ size board
-        inf = n * m
         new = array ((0,0),(n,m)) [((i,j),inf) | i <- [0..n], j <- [0..m]]
         matrix = new //[(pos,0)]
 
 
+
 closest_job:: Matrix -> MatrixInt -> Cell -> Position
 closest_job board matrix cell = 
-    if null positions
+    if cell == Corral then 
+        first_corral board
+    else if null positions
         then (-1,-1)
     else 
         snd $ minimum positions
     where
-        n = fst $ size board
-        m = snd $ size board
         positions = [(matrix!(i,j), (i,j)) | i <- [0..n], j <- [0..m], board ! (i,j) == cell ]
 
 
@@ -122,8 +121,11 @@ change_cell_kid_in_robot::Matrix -> Position -> Position -> Cell -> Matrix
 change_cell_kid_in_robot board begin end cell
     | e == Empty = f KidInRobot 
     | e == Dirt = f KidInRobotCleaning
-    | e == Corral =  f RobotAndKidInCorral
-    | e == KidInCorral = f KidInRobotPassingKidInCorral
+    | e == Corral =  
+        if first_corral board == end then
+            f RobotAndKidInCorral
+        else f KidInRobotPassingCorral
+    | e == KidInCorral = board
     | otherwise = board
     where 
         e = board ! end
@@ -140,6 +142,20 @@ change_cell_robot_and_kid_in_corral board begin end
         e = board ! end
         f = move_cell_change_final board begin end KidInCorral
 
+change_cell_kid_in_robot_passing_corral::Matrix -> Position -> Position -> Matrix
+change_cell_kid_in_robot_passing_corral board begin end 
+    | e == Empty = f KidInRobot 
+    | e == Dirt = f KidInRobotCleaning
+    | e == Corral =
+        if first_corral board == end then
+            f RobotAndKidInCorral
+        else f KidInRobotPassingCorral
+    | e == KidInCorral = board
+    | otherwise = board
+    where 
+        e = board ! end
+        f = move_cell_change_final board begin end Corral
+
 change_cell_robot_move::Matrix -> Position -> Position -> Matrix
 change_cell_robot_move board begin end 
     | b == RobotDirt || b == RobotDirtCleaning = rd Empty
@@ -149,7 +165,8 @@ change_cell_robot_move board begin end
     | b == RobotKidPassingCorral = rk Corral
     | b == RobotKidPassingKidInCorral = rk KidInCorral
     | b == KidInRobot || b == KidInRobotCleaning = kr Empty
-    | b == KidInRobotPassingKidInCorral = kr KidInCorral
+    | b == KidInRobotPassingCorral = 
+        change_cell_kid_in_robot_passing_corral board begin end
     | otherwise = change_cell_robot_and_kid_in_corral board begin end
     where 
         rd = change_cell_robot_dirt board begin end 
@@ -160,8 +177,8 @@ change_cell_robot_move board begin end
 
 move_robot::Matrix -> Position -> Matrix
 move_robot board position =
-    if closest /= (-1,-1) && matrix ! closest /= inf
-        then 
+    if closest /= (-1,-1) && matrix ! closest /= inf then 
+        trace(show $ first_corral board)
         change_cell_robot_move board position movement
     else 
         board

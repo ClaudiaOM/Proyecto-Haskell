@@ -9,33 +9,33 @@ change_environment = 10
 --Board Size
 --Width
 n::Int
-n = 10
+n = 5
 --Height
 m::Int
-m = 10
+m = 5
 
 corral_width::Int
-corral_width = 5
+corral_width = 3
 
 corral_heigth::Int
-corral_heigth = 5
+corral_heigth = 3
 
 number_kids::Int
-number_kids = 25
+number_kids = 9
 
 obstacles::Int
-obstacles = 5
+obstacles = 0
 
 --ROBOTS
 reactive_robots_dirt::Int
-reactive_robots_dirt = 0
+reactive_robots_dirt = 1
 
 --0 Value Not Permited
 reactive_robots_kids::Int
-reactive_robots_kids = 4
+reactive_robots_kids = 2
 
 deductive_robots::Int
-deductive_robots = 4
+deductive_robots = 2
 
 
 --Do not change

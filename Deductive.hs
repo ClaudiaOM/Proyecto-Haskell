@@ -12,7 +12,7 @@ robot_can_move board pos c =
     if c == Kid
         then cell == Empty || cell == Corral || cell == Dirt || cell == Kid || cell == KidInCorral
     else if c == Corral
-        then cell == Empty || cell == Dirt || cell == Corral || cell == KidInCorral
+        then cell == Empty || cell == Dirt || cell == Corral
     else cell == Empty || cell == Corral || cell == Dirt || cell == KidInCorral
     where 
         cell = board ! pos
@@ -38,10 +38,11 @@ calculate_matrix_BFS board pos cell =
         new = array ((0,0),(n,m)) [((i,j),inf) | i <- [0..n], j <- [0..m]]
         matrix = new //[(pos,0)]
         
-
 closest_job:: Matrix -> MatrixInt -> Cell -> Position
 closest_job board matrix cell = 
-    if null positions
+    if cell == Corral then 
+        first_corral board
+    else if null positions
         then (-1,-1)
     else 
         snd $ minimum positions
@@ -63,9 +64,11 @@ build_path matrix begin end =
 
 reactive_move::Matrix -> MatrixInt -> Position -> Cell -> (Position,Position)
 reactive_move board matrix position cell = 
-    if closest == (-1,-1) || matrix ! closest == inf then 
+    if closest == (-1,-1) || matrix ! closest == inf then         
+        trace(show "Reactive Imposible")
         ((-1,-1),(-1,-1))
     else 
+        trace(show "Reactive")
         (closest,movement)
     where
         closest = closest_job board matrix cell
@@ -75,16 +78,18 @@ reactive_move board matrix position cell =
 
 objective_move:: Matrix -> MatrixInt -> Position -> (Position, Position)
 objective_move board matrix pos = 
-    if objective == (-1,-1) || matrix ! objective == inf then
+    if objective == (-1,-1) || matrix ! objective == inf then         
+        trace(show "Objective Imposible")
         ((-1,-1),(-1,-1))
     else case b of
-        Kid -> movement
-        Corral -> movement
-        Robot _ -> ((-1,-1),(-1,-1))
+        Kid -> trace(show "Objective") movement
+        Corral ->trace(show "Objective")  movement
+        Robot _ -> trace(show "Objective Robot")  ((-1,-1),(-1,-1))
         _ -> 
             if null kids || matrix ! k == inf then 
+                trace(show "Objective Imposible2") 
                 ((-1,-1),(-1,-1))
-            else movement2
+            else trace(show "Objective")  movement2
     where        
         (Robot (objective,cell,state)) = board ! pos    
         b = board ! objective    
@@ -93,7 +98,8 @@ objective_move board matrix pos =
         movement = (objective, p1)    
 
         kids = filter (\v -> board ! v == Kid) $ adjacents_square objective (n,m)
-        k:_ = kids
+        t = [(matrix ! x, x) | x <- kids]
+        k = snd $ minimum t
         path2 = build_path matrix pos k
         p2:_ = path2
         movement2 = (k,p2)
@@ -106,7 +112,7 @@ change_cell_state_moving_cleaning board begin end
     | e == Dirt = f (Robot (position,cell,Cleaning)) 
     | e == Corral =  f (Robot (position,cell,PassingCorral)) 
     | e == KidInCorral = f (Robot (position,cell,PassingKidInCorral)) 
-    | otherwise = f (Robot ((-1,-1),cell,CarryingKid)) 
+    | otherwise = f (Robot (first_corral board,cell,CarryingKid)) 
     where
         (Robot (position,cell,state)) = board ! begin
         f = move_cell_change_final board begin end Empty 
@@ -117,8 +123,11 @@ change_cell_state_carrying_kid_cleaning::Matrix -> Position -> Position -> Matri
 change_cell_state_carrying_kid_cleaning board begin end 
     | e == Empty = f (Robot (position,cell,CarryingKid)) 
     | e == Dirt = f (Robot (position,cell,CarryingKidCleaning)) 
-    | e == Corral =  f (Robot ((-1,-1),cell,KidAndRobotInCorral)) 
-    | e == KidInCorral = f (Robot (position,cell,CarryingKidPassingKidInCorral)) 
+    | e == Corral =  
+        if first_corral board == end then
+            f (Robot ((-1,-1),cell,KidAndRobotInCorral))
+        else f (Robot (position,cell,CarryingKidPassingCorral))         
+    | e == KidInCorral = board
     | otherwise = board --Imposible
     where
         (Robot (position,cell,state)) = board ! begin
@@ -132,7 +141,7 @@ change_cell_state_passing_corral board begin end
     | e == Dirt = f (Robot (position,cell,Cleaning)) 
     | e == Corral =  f (Robot (position,cell,PassingCorral)) 
     | e == KidInCorral = f (Robot (position,cell,PassingKidInCorral)) 
-    | otherwise = f (Robot ((-1,-1),cell,CarryingKid)) --Imposible
+    | otherwise = f (Robot (first_corral board,cell,CarryingKid)) --Imposible
     where
         (Robot (position,cell,state)) = board ! begin
         f = move_cell_change_final board  begin end Corral 
@@ -151,17 +160,20 @@ change_cell_state_passing_kid_corral board begin end
         f = move_cell_change_final board  begin end KidInCorral 
         e = board ! end
 
--- CARRYING KID PASSING KID IN CORRAL
-change_cell_state_carrying_kid_passing_kid_in_corral::Matrix -> Position -> Position -> Matrix
-change_cell_state_carrying_kid_passing_kid_in_corral board begin end 
+-- CARRYING KID PASSING CORRAL
+change_cell_state_carrying_kid_passing_corral::Matrix -> Position -> Position -> Matrix
+change_cell_state_carrying_kid_passing_corral board begin end 
     | e == Empty = f (Robot (position,cell,CarryingKid)) 
     | e == Dirt = f (Robot (position,cell,CarryingKidCleaning)) 
-    | e == Corral =  f (Robot ((-1,-1),cell,KidAndRobotInCorral)) 
-    | e == KidInCorral = f (Robot (position,cell,CarryingKidPassingKidInCorral)) 
-    | otherwise = f (Robot ((-1,-1),cell,CarryingKid)) --Imposible
+    | e == Corral = 
+        if first_corral board == end then
+            f (Robot ((-1,-1),cell,KidAndRobotInCorral)) 
+        else f (Robot (position,cell,CarryingKidPassingCorral)) 
+    | e == KidInCorral = board
+    | otherwise = board --Imposible
     where
         (Robot (position,cell,state)) = board ! begin
-        f = move_cell_change_final board  begin end KidInCorral 
+        f = move_cell_change_final board begin end Corral 
         e = board ! end
 
 -- KID AND ROBOT IN CORRAL
@@ -171,7 +183,7 @@ change_cell_state_kid_and_robot_in_corral board begin end
     | e == Dirt = f (Robot ((-1,-1),cell,Cleaning)) 
     | e == Corral =  f (Robot ((-1,-1),cell,PassingCorral)) 
     | e == KidInCorral = f (Robot ((-1,-1),cell,PassingKidInCorral)) 
-    | otherwise = f (Robot ((-1,-1),cell,CarryingKid))
+    | otherwise = f (Robot (first_corral board,cell,CarryingKid))
     where
         (Robot (position,cell,state)) = board ! begin
         f = move_cell_change_final board begin end KidInCorral 
@@ -183,7 +195,7 @@ change_cell_robot_move board begin end
     | state == CarryingKid || state == CarryingKidCleaning = change_cell_state_carrying_kid_cleaning board begin end
     | state == PassingCorral = change_cell_state_passing_corral board begin end
     | state == PassingKidInCorral = change_cell_state_passing_kid_corral board begin end
-    | state == CarryingKidPassingKidInCorral= change_cell_state_carrying_kid_passing_kid_in_corral board begin end
+    | state == CarryingKidPassingCorral= change_cell_state_carrying_kid_passing_corral board begin end
     | state == KidAndRobotInCorral = change_cell_state_kid_and_robot_in_corral board begin end
     where        
         (Robot (_,_,state)) = board ! begin
@@ -192,7 +204,7 @@ change_cell_robot_move board begin end
 my_mod::Int -> Int
 my_mod turn = mod turn change_environment
 
-distance::MatrixInt ->  Position -> Int -> Bool
+distance::MatrixInt -> Position -> Int -> Bool
 distance matrix end turn = e > d
     where 
         e = matrix ! end
@@ -204,54 +216,39 @@ move_robot::Int -> Matrix -> Position -> Matrix
 move_robot turn board pos =
 
     if position == (-1,-1) then
-        if state == CarryingKid then
-            if free_corral board && rc_move /= (-1,-1) then
-                change_cell_robot_move rc_board pos rc_move 
-            else 
-                board
+        if state == CarryingKid && free_corral board && rc_move /= (-1,-1) then
+            change_cell_robot_move rc_board pos rc_move 
         else if not(kids_in_board board) && kids_in_robot_board board && not(state == CarryingKid)
-            then
-                if dirt_in_board board && d_move /= (-1,-1) then
+            && dirt_in_board board && d_move /= (-1,-1) then
                     change_cell_robot_move d_board pos d_move
-                else
-                    board
         else          
             if k_move /= (-1,-1) then   
                 change_cell_robot_move k_board pos k_move  
-            else 
-                if dirt_in_board board && d_move /= (-1,-1) then
+        else if dirt_in_board board && d_move /= (-1,-1) then
                     change_cell_robot_move d_board pos d_move
-                else                    
-                    board
+        else                    
+            board
     else
-        if p == Corral then
-            if c_move /= (-1,-1) then 
-                change_cell_robot_move c_board pos c_move
-            else
-                board
+        if p == Corral && c_move /= (-1,-1) then 
+            change_cell_robot_move c_board pos c_move
         else if state == CarryingKid && rc_move /= (-1,-1) then 
             change_cell_robot_move rc_board pos rc_move 
         else if not(kids_in_board board) && kids_in_robot_board board && 
-            not(state == CarryingKid) then
-                if dirt_in_board board then 
-                    if d_move /= (-1,-1) then
-                        change_cell_robot_move d_board pos d_move
-                    else
-                        board
-                else 
-                    board
-        else 
-            if ok_move /= (-1,-1) then
-                if distance ok_matrix ok_goal turn then
-                    change_cell_robot_move ok_board pos ok_move
-                else if not(distance ok_matrix ok_goal turn) 
-                    && dirt_in_board board && d_move /= (-1,-1) then
-                        change_cell_robot_move d_board pos d_move
-                else           
-                    board // [(pos, (Robot ((-1,-1),Kid,state)))]
-            else
+            not(state == CarryingKid) && dirt_in_board board 
+            && d_move /= (-1,-1) then
+            change_cell_robot_move d_board pos d_move
+        else if ok_move /= (-1,-1) then
+            if distance ok_matrix ok_goal turn then
+                change_cell_robot_move ok_board pos ok_move
+            else if not(distance ok_matrix ok_goal turn) 
+                && dirt_in_board board && d_move /= (-1,-1) then
+                    change_cell_robot_move d_board pos d_move
+            else           
                 board // [(pos, (Robot ((-1,-1),Kid,state)))]
+        else
+            board // [(pos, (Robot ((-1,-1),Kid,state)))]
 
+ 
     where        
         percent = percent_clean board
         (Robot (position,cell,state)) = board ! pos
@@ -285,12 +282,6 @@ move_robot turn board pos =
         c_move = snd c
         c_board = board // [(pos, (Robot (c_goal,Corral,state)))]
             
-        od_matrix = calculate_matrix_BFS board pos Dirt
-        od = objective_move board od_matrix pos 
-        od_goal = fst od
-        od_move = snd od
-        od_board = board // [(pos, (Robot (od_goal,Dirt,state)))]
-        
         ok_matrix = calculate_matrix_BFS board pos Kid
         ok = objective_move board ok_matrix pos 
         ok_goal = fst ok
