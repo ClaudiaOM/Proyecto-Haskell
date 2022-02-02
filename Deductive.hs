@@ -78,36 +78,13 @@ objective_move board matrix pos =
     if objective == (-1,-1) || matrix ! objective == inf then
         ((-1,-1),(-1,-1))
     else case b of
-        Kid ->
-            trace(show "Kid")
-            trace(board_to_string board)
-            trace(show objective)
-            trace(show pos)
-            movement
-        Corral ->
-            trace(show "Corral")
-            trace(board_to_string board)
-            trace(show objective)
-            trace(show pos)
-             movement
-        Robot _ -> 
-            trace(show "Robot")
-            trace(board_to_string board)
-            trace(show objective)
-            trace(show pos)
-            ((-1,-1),(-1,-1))
+        Kid -> movement
+        Corral -> movement
+        Robot _ -> ((-1,-1),(-1,-1))
         _ -> 
             if null kids || matrix ! k == inf then 
                 ((-1,-1),(-1,-1))
-            else 
-                trace(show "Else")
-                trace(board_to_string board)
-                trace(show objective)
-                trace(show pos)
-                trace(show kids)
-                trace(show k)
-
-                movement2
+            else movement2
     where        
         (Robot (objective,cell,state)) = board ! pos    
         b = board ! objective    
@@ -228,85 +205,50 @@ move_robot turn board pos =
     if position == (-1,-1) then
         if state == CarryingKid then
             if free_corral board && rc_move /= (-1,-1) then
-                trace(show "1")
                 change_cell_robot_move rc_board pos rc_move 
             else 
-                trace(show "12")
-                board
-        else if not(kids_in_board board) && not (kids_in_robot_board board) then
-            if d_move /= (-1,-1) then
-                trace(show "2")
-                change_cell_robot_move d_board pos d_move
-            else
-                trace(show "3")
                 board
         else if not(kids_in_board board) && kids_in_robot_board board && not(state == CarryingKid)
             then
                 if dirt_in_board board && d_move /= (-1,-1) then
-                     trace(show "4")
                     change_cell_robot_move d_board pos d_move
                 else
-                    trace(show "5")
                     board
         else          
             if k_move /= (-1,-1) then   
-                trace(show "6")
                 change_cell_robot_move k_board pos k_move  
             else 
                 if dirt_in_board board && d_move /= (-1,-1) then
-                    trace(show "61")
                     change_cell_robot_move d_board pos d_move
                 else                    
                     board
-
     else
         if p == Corral then
             if c_move /= (-1,-1) then 
-                trace(show "7")
                 change_cell_robot_move c_board pos c_move
             else
-                trace(show "71")
                 board
         else if state == CarryingKid && rc_move /= (-1,-1) then 
-            trace(show "8")
-            trace(show pos)
-            --trace(show rc_matrix)
-            trace(show rc_goal)
-            trace(show rc_move)
-            trace(board_to_string rc_board)
             change_cell_robot_move rc_board pos rc_move 
-        else if not(kids_in_board board) && not (kids_in_robot_board board) then
-            if d_move /= (-1,-1) then 
-                trace(show "10")  
-                change_cell_robot_move d_board pos d_move
-            else
-                trace(show "11")
-                board
         else if not(kids_in_board board) && kids_in_robot_board board && 
             not(state == CarryingKid) then
                 if dirt_in_board board then 
                     if d_move /= (-1,-1) then
-                        trace(show "12")
                         change_cell_robot_move d_board pos d_move
                     else
-                        trace(show "121")
                         board
                 else 
-                    trace(show "13")
                     board
         else 
             if ok_move /= (-1,-1) then
                 if distance ok_matrix ok_goal turn then
-                    trace(show "20")
                     change_cell_robot_move ok_board pos ok_move
                 else if not(distance ok_matrix ok_goal turn) 
                     && dirt_in_board board && d_move /= (-1,-1) then
                         change_cell_robot_move d_board pos d_move
                 else           
-                    trace(show "22")
                     board // [(pos, (Robot ((-1,-1),Kid,state)))]
             else
-                trace(show "15")
                 board // [(pos, (Robot ((-1,-1),Kid,state)))]
 
     where
@@ -357,8 +299,8 @@ move_robot turn board pos =
 
 
 
-move_all_robot:: Matrix -> Int -> Matrix
-move_all_robot board turn =   
+move_all_robot_deductive:: Matrix -> Int -> Matrix
+move_all_robot_deductive board turn =   
     if flag == True then
         foldl (move_robot turn) b r 
     else 

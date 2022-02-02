@@ -101,8 +101,8 @@ fill_cell board total positions seed cell=
         b = board // [(p, cell)]
         
 
-fill_board:: Matrix -> (Int, Int, Int) -> (Int, Int, Int, Int, Int, Int) -> Matrix  
-fill_board board (cx, cy, r) (size_cor_x, size_cor_y, total_robot_dirt, 
+fill_board_reactive:: Matrix -> (Int, Int, Int) -> (Int, Int, Int, Int, Int, Int) -> Matrix  
+fill_board_reactive board (cx, cy, r) (size_cor_x, size_cor_y, total_robot_dirt, 
                 total_robot_kid, total_obs, total_kid) = board4   
     where
         n = fst $ size board
@@ -113,13 +113,35 @@ fill_board board (cx, cy, r) (size_cor_x, size_cor_y, total_robot_dirt,
         corral = positions_corral (corral_x, corral_y) (size_cor_x, size_cor_y)
         boardt = fill_corral board corral
         positions_t = delete_sub_list corral positions
-        temp0 = fill_cell boardt total_robot_dirt positions_t r (Robot ((-1,-1), Empty, Moving))
+        temp0 = fill_cell boardt total_robot_dirt positions_t r RobotDirt
         positions_0 = snd temp0
         board0 = fst temp0
-        temp1 = fill_cell board0 total_robot_kid positions_0 r (Robot ((-1,-1), Empty, Moving))
+        temp1 = fill_cell board0 total_robot_kid positions_0 r RobotKid
         positions_2 = snd temp1
         board2 = fst temp1
         temp2 = fill_cell board2 total_obs positions_2 (r * cx) Obstacle
+        positions_3 = snd temp2
+        board3 = fst temp2
+        temp3 = fill_cell board3 total_kid positions_3 (r * cy) Kid
+        board4 = fst temp3
+
+
+fill_board_deductive:: Matrix -> (Int, Int, Int) -> (Int, Int, Int, Int, Int) -> Matrix  
+fill_board_deductive board (cx, cy, r) (size_cor_x, size_cor_y, total_robot, total_obs, total_kid) 
+                            = board4   
+    where
+        n = fst $ size board
+        m = snd $ size board
+        positions = [(i,j) | i <- [0..n], j <- [0..m]]
+        corral_x = range_random cx $ n - size_cor_x
+        corral_y = range_random cy $ m - size_cor_y
+        corral = positions_corral (corral_x, corral_y) (size_cor_x, size_cor_y)
+        boardt = fill_corral board corral
+        positions_t = delete_sub_list corral positions
+        temp0 = fill_cell boardt total_robot positions_t r (Robot ((-1,-1),Empty,Moving))
+        positions_0 = snd temp0
+        board0 = fst temp0
+        temp2 = fill_cell board0 total_obs positions_0 (r * cx) Obstacle
         positions_3 = snd temp2
         board3 = fst temp2
         temp3 = fill_cell board3 total_kid positions_3 (r * cy) Kid
@@ -169,18 +191,25 @@ kids_in_robot_board:: Matrix -> Bool
 kids_in_robot_board board =  any (is_kid_in_robot ) board 
 
 total_clean_cells:: Matrix -> Int
-total_clean_cells board = length $ filter (\v -> board ! v == Empty || board ! v == Obstacle) pos
+total_clean_cells board = length $ filter (\v -> board ! v == Empty || board ! v == Dirt) pos
+                        where 
+                            n = fst $ size board
+                            m = snd $ size board
+                            pos = [(i,j) | i<- [0..n], j<-[0..m]]
+
+total_dirt board =  length $ filter (\v -> board ! v == Dirt) pos
                         where 
                             n = fst $ size board
                             m = snd $ size board
                             pos = [(i,j) | i<- [0..n], j<-[0..m]]
 
 total_clean:: Matrix -> Bool
-total_clean board = div (t * 100) (n * m) >= 60
+total_clean board = div (x * 100) (t) <= 60
     where
         n = (fst $ size board) + 1
         m = (snd $ size board) + 1
         t = total_clean_cells board
+        x = total_dirt board
 
 finished:: Matrix -> Bool
 finished board = not (kids) && not (rob) && clean 

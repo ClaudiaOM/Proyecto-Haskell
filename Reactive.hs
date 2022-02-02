@@ -1,4 +1,6 @@
-module Reactive where
+module Reactive(
+    move_all_robot_reactive,
+) where
 
 import Board
 import Random
@@ -6,7 +8,7 @@ import Data.Array
 import Debug.Trace
 import Data.List(unlines, unwords)
 import Data.Foldable
-
+import Moves
 
 not_visited::Matrix -> MatrixInt -> Int -> Position -> Bool
 not_visited board bfs inf pos = 
@@ -174,8 +176,8 @@ move_robot board position =
         movement = head path    
 
 
-move_all_robot:: Matrix -> Bool -> Matrix
-move_all_robot board flag =   
+move_all_robot_reactive:: Matrix -> Bool -> Matrix
+move_all_robot_reactive board flag =   
     if flag == True then foldl move_robot b r 
     else foldl move_robot b t
     where
