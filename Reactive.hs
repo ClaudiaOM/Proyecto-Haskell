@@ -78,7 +78,7 @@ build_path matrix begin end =
 
 
 matrix_robot::Matrix -> Position -> (MatrixInt, Cell)
-matrix_robot board position =
+matrix_robot board position =  
     if (not(kids_in_board board) && not(kids_in_robot_board board))
         then (calculate_matrix_BFS board position Dirt, Dirt)   
     else if is_robot_dirt robot_type
@@ -89,6 +89,7 @@ matrix_robot board position =
         then (calculate_matrix_BFS board position Corral, Corral)
     else (calculate_matrix_BFS board position Dirt, Dirt) 
     where
+        percent = percent_clean board
         robot_type = board ! position
 
 

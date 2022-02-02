@@ -5,40 +5,37 @@ module Constants where
 change_environment::Int
 change_environment = 10
 
---Actual Turn
-turns::Int
-turns = 1
 
 --Board Size
 --Width
 n::Int
-n = 7
+n = 10
 --Height
 m::Int
-m = 7
+m = 10
 
 corral_width::Int
-corral_width = 4
+corral_width = 5
 
 corral_heigth::Int
-corral_heigth = 3
+corral_heigth = 5
 
 number_kids::Int
-number_kids = 12
+number_kids = 25
 
 obstacles::Int
-obstacles = 10
+obstacles = 5
 
 --ROBOTS
 reactive_robots_dirt::Int
-reactive_robots_dirt = 2
+reactive_robots_dirt = 0
 
 --0 Value Not Permited
 reactive_robots_kids::Int
-reactive_robots_kids = 2
+reactive_robots_kids = 4
 
 deductive_robots::Int
-deductive_robots = 2
+deductive_robots = 4
 
 
 --Do not change
@@ -74,3 +71,18 @@ title_complete::String
 title_complete = "-------------------------------\n"++
                  "COMPLETE    \n" ++
                  "-------------------------------\n" 
+
+title_percent::Int -> String
+title_percent p = "-------------------------------\n"++
+                 "Percent Clean     " ++ show p ++ 
+                 "%\n-------------------------------\n" 
+
+title_min_percent::Int -> String
+title_min_percent p = "-------------------------------\n"++
+                      "Min Percent Clean     " ++ show p ++ 
+                      "%\n-------------------------------\n"
+
+title_steps::Int -> String
+title_steps p = "-------------------------------\n"++
+                "Total Steps     " ++ show p ++ 
+                "\n-------------------------------\n"

@@ -45,14 +45,14 @@ instance Show Cell where
 
     show RobotAndKidInCorral = "|C|"
 
-    show (Robot (_,_,CarryingKid)) = "|1|"
-    show (Robot (_,_,KidAndRobotInCorral)) = "|2|"
-    show (Robot (_,_,Moving)) = "|3|"
-    show (Robot (_,_,Cleaning)) = "|4|"
-    show (Robot (_,_,CarryingKidCleaning)) = "|5|"
-    show (Robot (_,_,CarryingKidPassingKidInCorral)) = "|6|"
-    show (Robot (_,_,PassingCorral)) = "|7|"
-    show (Robot (_,_,PassingKidInCorral)) = "|8|"
+    show (Robot (_,_,CarryingKid)) = "|T|"
+    show (Robot (_,_,KidAndRobotInCorral)) = "|T|"
+    show (Robot (_,_,Moving)) = "|T|"
+    show (Robot (_,_,Cleaning)) = "|T|"
+    show (Robot (_,_,CarryingKidCleaning)) = "|T|"
+    show (Robot (_,_,CarryingKidPassingKidInCorral)) = "|T|"
+    show (Robot (_,_,PassingCorral)) = "|T|"
+    show (Robot (_,_,PassingKidInCorral)) = "|T|"
    -- show (Robot _) = "|R|"
 
 type Matrix = Array (Int, Int) Cell
@@ -204,7 +204,15 @@ total_dirt board =  length $ filter (\v -> board ! v == Dirt) pos
                             pos = [(i,j) | i<- [0..n], j<-[0..m]]
 
 total_clean:: Matrix -> Bool
-total_clean board = div (x * 100) (t) <= 60
+total_clean board = 100 - div (x * 100) (t) >= 60
+    where
+        n = (fst $ size board) + 1
+        m = (snd $ size board) + 1
+        t = total_clean_cells board
+        x = total_dirt board
+
+percent_clean::Matrix -> Int
+percent_clean board = 100 - div (x * 100) (t) 
     where
         n = (fst $ size board) + 1
         m = (snd $ size board) + 1
@@ -217,7 +225,6 @@ finished board = not (kids) && not (rob) && clean
         clean = total_clean board
         kids = kids_in_board board
         rob = kids_in_robot_board board
-
 
 
 is_robot_dirt::Cell -> Bool
@@ -250,6 +257,8 @@ is_corral (Robot (_ , _, s)) = s == PassingCorral || s == PassingKidInCorral ||
                                s == CarryingKidPassingKidInCorral || s == KidAndRobotInCorral
 is_corral c = c == Corral || c == KidInCorral || c == RobotAndKidInCorral || c == RobotDirtPassingCorral
                 || c == RobotDirtPassingKidInCorral || c == RobotKidPassingCorral || c == RobotKidPassingKidInCorral
+                || c == KidInRobotPassingKidInCorral
+
 
 move_cell_change_final:: Matrix -> Position -> Position -> Cell -> Cell -> Matrix
 move_cell_change_final board (xi,yi) (xf,yf) celli cellf = board2

@@ -202,6 +202,7 @@ distance matrix end turn = e > d
 
 move_robot::Int -> Matrix -> Position -> Matrix
 move_robot turn board pos =
+
     if position == (-1,-1) then
         if state == CarryingKid then
             if free_corral board && rc_move /= (-1,-1) then
@@ -251,7 +252,8 @@ move_robot turn board pos =
             else
                 board // [(pos, (Robot ((-1,-1),Kid,state)))]
 
-    where
+    where        
+        percent = percent_clean board
         (Robot (position,cell,state)) = board ! pos
         p = board ! position
 
