@@ -29,21 +29,21 @@ instance Show Cell where
     show KidInCorral = "|k|"
     show Kid = "|K|"
 
-    show RobotKid = "|0|"
-    show RobotKidCleaning = "|1|"
-    show RobotKidPassingCorral = "|2|"
-    show RobotKidPassingKidInCorral = "|3|"
+    show RobotKid = "|R|"
+    show RobotKidCleaning = "|R|"
+    show RobotKidPassingCorral = "|R|"
+    show RobotKidPassingKidInCorral = "|R|"
 
-    show RobotDirt = "|4|"
-    show RobotDirtCleaning = "|5|"
-    show RobotDirtPassingCorral = "|6|"
-    show RobotDirtPassingKidInCorral= "|7|"
+    show RobotDirt = "|\ESC[31mR\ESC[0m|"
+    show RobotDirtCleaning = "|R|"
+    show RobotDirtPassingCorral = "|R|"
+    show RobotDirtPassingKidInCorral= "|R|"
 
     show KidInRobot = "|8|"
-    show KidInRobotCleaning = "|9|"
-    show KidInRobotPassingCorral = "|r|"
+    show KidInRobotCleaning = "|8|"
+    show KidInRobotPassingCorral = "|8|"
 
-    show RobotAndKidInCorral = "|C|"
+    show RobotAndKidInCorral = "|r|"
 
     show (Robot (_,_,CarryingKid)) = "|0|"
     show (Robot (_,_,KidAndRobotInCorral)) = "|1|"
@@ -166,8 +166,8 @@ remake_cells new_board board s (x:xs) = remake_cells board1 board (s + 1) xs
         cell = board ! x        
         board1 = fst $ fill_cell new_board 1 empty_positions s cell
  
-remake_board:: Matrix -> Matrix
-remake_board board = board2
+remake_board:: Matrix -> Int -> Matrix
+remake_board board s = board2
     where
         n = fst $ size board
         m = snd $ size board
@@ -176,7 +176,7 @@ remake_board board = board2
 
         board0 = array ((0,0),(n,m)) [((i,j), Empty) | i <- [0..n], j <- [0..m]]
         board1 = remake_corral board0 board corral 
-        board2 = remake_cells board1 board 2547836 pieces
+        board2 = remake_cells board1 board s pieces
 
 dirt_in_board:: Matrix -> Bool
 dirt_in_board board = any (Dirt ==) board
@@ -229,7 +229,7 @@ first_corral board =
     else 
         head positions
     where
-        positions = [(i,j) | i <- [0..n], j <- [0..m], (is_corral $ board ! (i,j))  && board ! (i,j) /= KidInCorral]
+        positions = [(i,j) | i <- [0..n], j <- [0..m], (is_free_corral $ board ! (i,j))  && board ! (i,j) /= KidInCorral]
 
 
 is_robot_dirt::Cell -> Bool
@@ -263,7 +263,16 @@ is_corral (Robot (_ , _, s)) = s == PassingCorral || s == PassingKidInCorral ||
 is_corral c = c == Corral || c == KidInCorral || c == RobotAndKidInCorral || c == RobotDirtPassingCorral
                 || c == RobotDirtPassingKidInCorral || c == RobotKidPassingCorral 
                 || c == RobotKidPassingKidInCorral  || c == KidInRobotPassingCorral
-                
+
+is_free_corral::Cell -> Bool
+is_free_corral (Robot (_ , _, s)) = s == PassingCorral ||
+                               s == CarryingKidPassingCorral || s == KidAndRobotInCorral
+is_free_corral c = c == Corral || c == RobotDirtPassingCorral
+                || c == RobotKidPassingCorral || c == KidInRobotPassingCorral
+
+
+is_carrying_kid::State -> Bool
+is_carrying_kid c = c == CarryingKid || c == CarryingKidCleaning || c == CarryingKidPassingCorral               
 
 move_cell_change_final:: Matrix -> Position -> Position -> Cell -> Cell -> Matrix
 move_cell_change_final board (xi,yi) (xf,yf) celli cellf = board2

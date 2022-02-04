@@ -31,9 +31,6 @@ bfs:: Matrix -> MatrixInt -> [Position] -> Cell-> MatrixInt
 bfs board matrix [] cell = matrix
 bfs board matrix positions cell = bfs board updated_bfs new_positions cell
     where
-        n = fst $ size board
-        m = snd $ size board
-        inf = n * m
         x = head positions
         xs = tail positions
         valid_moves = filter (\v -> matrix ! v == inf && robot_can_move board v cell) $ adjacents x (n,m)
@@ -78,8 +75,12 @@ build_path matrix begin end =
 
 matrix_robot::Matrix -> Position -> (MatrixInt, Cell)
 matrix_robot board position =  
-    if (not(kids_in_board board) && not(kids_in_robot_board board))
+    if robot_type == KidInRobotPassingCorral && first_corral board == position
+        then (calculate_matrix_BFS board position Empty, Empty) 
+    else if (not(kids_in_board board) && not(kids_in_robot_board board))
         then (calculate_matrix_BFS board position Dirt, Dirt)   
+    else if not(kids_in_board board) && not(is_kid_in_robot $ board ! position)  
+        then (calculate_matrix_BFS board position Empty, Empty) 
     else if is_robot_dirt robot_type
         then (calculate_matrix_BFS board position Dirt, Dirt)
     else if is_robot_kid robot_type
@@ -110,7 +111,7 @@ change_cell_robot_kid board begin end cell
     | e == Dirt = f RobotKidCleaning
     | e == Corral =  f RobotKidPassingCorral
     | e == KidInCorral = f RobotKidPassingKidInCorral
-    | otherwise = if b == RobotKidPassingKidInCorral then board else f KidInRobot
+    | otherwise = f KidInRobot
     where 
         e = board ! end
         b = board ! begin
@@ -178,20 +179,16 @@ change_cell_robot_move board begin end
 move_robot::Matrix -> Position -> Matrix
 move_robot board position =
     if closest /= (-1,-1) && matrix ! closest /= inf then 
-        trace(show $ first_corral board)
         change_cell_robot_move board position movement
     else 
         board
     where
-        n = fst $ size board
-        m = snd $ size board
-        inf = n * m
         temp = matrix_robot board position
         matrix = fst temp
         cell = snd temp
         closest = closest_job board matrix cell
         path = build_path matrix position closest
-        movement = head path    
+        movement:_ = path    
 
 
 move_all_robot_reactive:: Matrix -> Bool -> Matrix

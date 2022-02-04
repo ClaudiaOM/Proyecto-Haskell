@@ -3,44 +3,44 @@ module Constants where
 
 --Change Environment Variable (Amount of Turns)
 change_environment::Int
-change_environment = 10
+change_environment = 400
 
 
 --Board Size
 --Width
 n::Int
-n = 5
+n = 22
 --Height
 m::Int
-m = 5
+m = 22
 
 corral_width::Int
-corral_width = 3
+corral_width = 10
 
 corral_heigth::Int
-corral_heigth = 3
+corral_heigth = 10
 
 number_kids::Int
-number_kids = 9
+number_kids = 100
 
 obstacles::Int
-obstacles = 0
+obstacles = 55
 
 --ROBOTS
 reactive_robots_dirt::Int
-reactive_robots_dirt = 1
+reactive_robots_dirt = 2
 
 --0 Value Not Permited
 reactive_robots_kids::Int
-reactive_robots_kids = 2
+reactive_robots_kids = 8
 
 deductive_robots::Int
-deductive_robots = 2
+deductive_robots = 10
 
 
---Do not change
+--DO NOT CHANGE!!!
 inf::Int
-inf =  n * m
+inf =  (n + 5) * (m + 5)
 
 title_change_environment::String
 title_change_environment = "-------------------------------\n"++

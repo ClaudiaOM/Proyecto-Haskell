@@ -34,7 +34,6 @@ calculate_matrix_BFS:: Matrix -> Position -> Cell -> MatrixInt
 calculate_matrix_BFS board pos cell =
     bfs board matrix [pos] cell
     where 
-        inf = n * m
         new = array ((0,0),(n,m)) [((i,j),inf) | i <- [0..n], j <- [0..m]]
         matrix = new //[(pos,0)]
         
@@ -59,37 +58,33 @@ build_path matrix begin end =
         s = snd $ bounds matrix
         adj = adjacents end (n,m)
         current = matrix ! end
-        new_end = head $ filter (\x -> matrix ! x == current - 1) adj
+        new_end: _ =  filter (\x -> matrix ! x == current - 1) adj
 
 
 reactive_move::Matrix -> MatrixInt -> Position -> Cell -> (Position,Position)
 reactive_move board matrix position cell = 
-    if closest == (-1,-1) || matrix ! closest == inf then         
-        trace(show "Reactive Imposible")
+    if closest == (-1,-1) || matrix ! closest == inf then             
         ((-1,-1),(-1,-1))
     else 
-        trace(show "Reactive")
         (closest,movement)
     where
         closest = closest_job board matrix cell
         path = build_path matrix position closest
-        movement = head path 
+        movement: _ = path 
 
 
 objective_move:: Matrix -> MatrixInt -> Position -> (Position, Position)
 objective_move board matrix pos = 
     if objective == (-1,-1) || matrix ! objective == inf then         
-        trace(show "Objective Imposible")
         ((-1,-1),(-1,-1))
     else case b of
-        Kid -> trace(show "Objective") movement
-        Corral ->trace(show "Objective")  movement
-        Robot _ -> trace(show "Objective Robot")  ((-1,-1),(-1,-1))
+        Kid -> movement
+        Corral -> movement
+        Robot _ -> ((-1,-1),(-1,-1))
         _ -> 
             if null kids || matrix ! k == inf then 
-                trace(show "Objective Imposible2") 
                 ((-1,-1),(-1,-1))
-            else trace(show "Objective")  movement2
+            else movement2
     where        
         (Robot (objective,cell,state)) = board ! pos    
         b = board ! objective    
@@ -213,12 +208,14 @@ distance matrix end turn = e > d
 
 
 move_robot::Int -> Matrix -> Position -> Matrix
-move_robot turn board pos =
-
-    if position == (-1,-1) then
-        if state == CarryingKid && free_corral board && rc_move /= (-1,-1) then
+move_robot turn board pos =    
+    if state == CarryingKidPassingCorral && first_corral board == pos then
+        change_cell_robot_move e_board pos e_move 
+    else if position == (-1,-1) then
+        if is_carrying_kid state && free_corral board && rc_move /= (-1,-1) then
             change_cell_robot_move rc_board pos rc_move 
-        else if not(kids_in_board board) && kids_in_robot_board board && not(state == CarryingKid)
+        else if not(kids_in_board board) && kids_in_robot_board board && 
+            not(state == CarryingKid)
             && dirt_in_board board && d_move /= (-1,-1) then
                     change_cell_robot_move d_board pos d_move
         else          
@@ -231,10 +228,10 @@ move_robot turn board pos =
     else
         if p == Corral && c_move /= (-1,-1) then 
             change_cell_robot_move c_board pos c_move
-        else if state == CarryingKid && rc_move /= (-1,-1) then 
+        else if is_carrying_kid state && rc_move /= (-1,-1) then 
             change_cell_robot_move rc_board pos rc_move 
         else if not(kids_in_board board) && kids_in_robot_board board && 
-            not(state == CarryingKid) && dirt_in_board board 
+            not(is_carrying_kid state ) && dirt_in_board board 
             && d_move /= (-1,-1) then
             change_cell_robot_move d_board pos d_move
         else if ok_move /= (-1,-1) then
@@ -253,6 +250,13 @@ move_robot turn board pos =
         percent = percent_clean board
         (Robot (position,cell,state)) = board ! pos
         p = board ! position
+
+        --EMPTY
+        e_matrix = calculate_matrix_BFS board pos Empty
+        e = reactive_move board k_matrix pos Empty
+        e_goal = fst e
+        e_move = snd e
+        e_board = board // [(pos, (Robot (e_goal,Empty,state)))]
 
         --REACTIVE KIDS
         k_matrix = calculate_matrix_BFS board pos Kid
